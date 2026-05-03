@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>macroEngine (AME) — API Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0d0f0e;
+    --bg2:      #131614;
+    --bg3:      #1a1d1b;
+    --bg4:      #222622;
+    --border:   #2a2f2b;
+    --green:    #4ade80;
+    --green2:   #22c55e;
+    --green-dim:#166534;
+    --amber:    #fbbf24;
+    --red:      #f87171;
+    --blue:     #60a5fa;
+    --muted:    #6b7a6d;
+    --text:     #d4e4d6;
+    --text2:    #a8bfaa;
+    --heading:  #e8f5e9;
+    --code-bg:  #0a0c0b;
+    --tag-bg:   #1e2b1f;
+    --radius:   6px;
+    --sidebar:  260px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 56px;
+    background: rgba(13,15,14,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 20px;
+  }
+  .topbar-logo {
+    font-size: 15px; font-weight: 800; letter-spacing: 0.04em;
+    color: var(--green); white-space: nowrap; flex-shrink: 0;
+  }
+  .topbar-logo span { color: var(--text2); font-weight: 400; font-size: 12px; margin-left: 8px; }
+  .topbar-search {
+    flex: 1; max-width: 400px;
+    display: flex; align-items: center;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    transition: border-color .2s;
+  }
+  .topbar-search:focus-within { border-color: var(--green-dim); }
+  .topbar-search input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; padding: 8px 12px;
+  }
+  .topbar-search input::placeholder { color: var(--muted); }
+  .topbar-search .search-icon { padding: 0 10px; color: var(--muted); font-size: 13px; }
+  .topbar-badges { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+  .badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 3px 8px; border-radius: 4px; font-weight: 500;
+  }
+  .badge-green { background: #14532d; color: var(--green); border: 1px solid #166534; }
+  .badge-amber { background: #431407; color: var(--amber); border: 1px solid #92400e; }
+  .badge-ver   { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+
+  /* ── LAYOUT ── */
+  .layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+
+  /* ── SIDEBAR ── */
+  aside {
+    width: var(--sidebar); flex-shrink: 0;
+    position: fixed; top: 56px; bottom: 0; left: 0;
+    overflow-y: auto; overflow-x: hidden;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 16px 0 40px;
+  }
+  aside::-webkit-scrollbar { width: 4px; }
+  aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .sidebar-section { margin-bottom: 4px; }
+  .sidebar-heading {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); padding: 12px 20px 4px;
+  }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 20px; font-size: 13px; font-weight: 500;
+    color: var(--text2); text-decoration: none; cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all .15s;
+  }
+  .sidebar-link:hover { color: var(--heading); background: var(--bg3); }
+  .sidebar-link.active { color: var(--green); border-left-color: var(--green); background: var(--tag-bg); }
+  .sidebar-link .mod-icon { font-size: 14px; width: 18px; text-align: center; }
+
+  /* ── MAIN ── */
+  main {
+    margin-left: var(--sidebar);
+    flex: 1; padding: 40px 48px 80px;
+    max-width: calc(100vw - var(--sidebar));
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 48px 0 56px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--green); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  .hero-title {
+    font-size: clamp(32px, 4vw, 52px); font-weight: 800; line-height: 1.05;
+    color: var(--heading); margin-bottom: 16px;
+  }
+  .hero-title em { color: var(--green); font-style: normal; }
+  .hero-desc { font-size: 15px; color: var(--text2); max-width: 620px; line-height: 1.7; margin-bottom: 28px; }
+  .hero-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    padding: 4px 10px; border-radius: 4px;
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+  }
+  .chip.green { background: var(--tag-bg); border-color: var(--green-dim); color: var(--green); }
+
+  /* ── SECTION HEADERS ── */
+  .section-anchor { scroll-margin-top: 80px; }
+  .module-header {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 32px 0 20px; border-top: 1px solid var(--border); margin-top: 48px;
+  }
+  .module-header:first-of-type { border-top: none; margin-top: 0; }
+  .module-icon-box {
+    width: 46px; height: 46px; border-radius: 8px;
+    background: var(--tag-bg); border: 1px solid var(--green-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .module-meta { flex: 1; }
+  .module-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 4px;
+  }
+  .module-name .ns { color: var(--muted); font-weight: 400; }
+  .module-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+  /* ── FUNCTION CARDS ── */
+  .fn-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+  .fn-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    transition: border-color .2s;
+  }
+  .fn-card:hover { border-color: var(--green-dim); }
+  .fn-card-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; cursor: pointer; user-select: none;
+    background: var(--bg3);
+  }
+  .fn-card-head:hover { background: var(--bg4); }
+  .fn-method {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+  }
+  .fn-method.fn  { background: #1e3a5f; color: var(--blue); }
+  .fn-method.tag { background: #1a2e1a; color: var(--green); }
+  .fn-method.st  { background: #2a1f0d; color: var(--amber); }
+  .fn-path {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--heading); font-weight: 500; flex: 1;
+  }
+  .fn-path .ns-part { color: var(--muted); }
+  .fn-summary { font-size: 12px; color: var(--text2); margin-left: auto; text-align: right; max-width: 280px; }
+  .fn-toggle { color: var(--muted); font-size: 12px; margin-left: 8px; transition: transform .2s; flex-shrink: 0; }
+  .fn-card.open .fn-toggle { transform: rotate(180deg); }
+  .fn-card-body { display: none; padding: 16px; border-top: 1px solid var(--border); }
+  .fn-card.open .fn-card-body { display: block; }
+
+  /* ── PARAMS TABLE ── */
+  .param-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px; margin-top: 16px;
+  }
+  .param-label:first-child { margin-top: 0; }
+  .param-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+  .param-table th {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--muted); text-align: left; font-weight: 500;
+    padding: 5px 10px; border-bottom: 1px solid var(--border);
+  }
+  .param-table td {
+    font-size: 12px; padding: 7px 10px;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  .param-table tr:last-child td { border-bottom: none; }
+  .param-table td:first-child { font-family: 'JetBrains Mono', monospace; color: var(--green); font-size: 11px; }
+  .param-table td:nth-child(2) { font-family: 'JetBrains Mono', monospace; color: var(--blue); font-size: 11px; }
+  .param-table td:nth-child(3) { color: var(--text2); font-size: 12px; }
+  .req { color: var(--red) !important; font-size: 10px !important; }
+  .opt { color: var(--muted) !important; font-size: 10px !important; }
+
+  /* ── CODE BLOCK ── */
+  .code-block {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 6px; overflow: hidden; margin-top: 8px;
+  }
+  .code-block-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 14px; background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .code-lang { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+  .copy-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 2px 8px; border-radius: 3px; cursor: pointer; transition: all .15s;
+  }
+  .copy-btn:hover { color: var(--green); border-color: var(--green-dim); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+  pre {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.7; padding: 16px; overflow-x: auto; color: var(--text);
+  }
+  .kw  { color: #c084fc; }
+  .str { color: #86efac; }
+  .cmt { color: #4b5e4d; font-style: italic; }
+  .num { color: var(--amber); }
+  .fn-hl { color: #60a5fa; }
+  .var { color: #fca5a5; }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-radius: 6px; padding: 12px 14px; margin: 12px 0;
+    font-size: 12px; line-height: 1.6; display: flex; gap: 10px;
+  }
+  .callout-warn { background: #271f0a; border: 1px solid #92400e; color: #fcd34d; }
+  .callout-info { background: #0d1f35; border: 1px solid #1e3a5f; color: #93c5fd; }
+  .callout-tip  { background: var(--tag-bg); border: 1px solid var(--green-dim); color: #86efac; }
+  .callout-icon { font-size: 14px; flex-shrink: 0; }
+  .callout-text { color: inherit; }
+
+  /* ── STORAGE TABLE ── */
+  .storage-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0;
+  }
+  .storage-card {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px;
+  }
+  .storage-key {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--amber); margin-bottom: 4px;
+  }
+  .storage-val { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+  /* ── SEARCH HIGHLIGHT ── */
+  .hl { background: #422006; color: var(--amber); border-radius: 2px; }
+  .hidden { display: none !important; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── FOOTER ── */
+  .page-footer {
+    text-align: center; padding: 32px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--muted); border-top: 1px solid var(--border);
+    margin-left: var(--sidebar);
+  }
+
+  @media (max-width: 768px) {
+    aside { display: none; }
+    main { margin-left: 0; padding: 24px 20px 60px; max-width: 100vw; }
+    .page-footer { margin-left: 0; }
+    .storage-grid { grid-template-columns: 1fr; }
+    .fn-summary { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">macroEngine <span>AME · API Reference</span></div>
+  <div class="topbar-search">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Search modules, functions…" autocomplete="off"/>
+  </div>
+  <div class="topbar-badges">
+    <span class="badge badge-green">✔ Server</span>
+    <span class="badge badge-amber">⚠ Singleplayer</span>
+    <span class="badge badge-ver">pack_format 94</span>
+    <span class="badge badge-ver">1.21.11</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-heading">Overview</div>
+    <a class="sidebar-link active" data-target="overview" onclick="nav(this,'overview')">
+      <span class="mod-icon">📖</span> Introduction
+    </a>
+    <a class="sidebar-link" data-target="storage" onclick="nav(this,'storage')">
+      <span class="mod-icon">🗄</span> Storage Convention
+    </a>
+    <a class="sidebar-link" data-target="macrosyntax" onclick="nav(this,'macrosyntax')">
+      <span class="mod-icon">⚙</span> Macro Syntax
+    </a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-heading">Modules</div>
+    <a class="sidebar-link" data-target="mod-scheduler" onclick="nav(this,'mod-scheduler')"><span class="mod-icon">⏱</span> scheduler</a>
+    <a class="sidebar-link" data-target="mod-timer" onclick="nav(this,'mod-timer')"><span class="mod-icon">🕐</span> timer</a>
+    <a class="sidebar-link" data-target="mod-queue" onclick="nav(this,'mod-queue')"><span class="mod-icon">📋</span> queue</a>
+    <a class="sidebar-link" data-target="mod-io" onclick="nav(this,'mod-io')"><span class="mod-icon">💾</span> io</a>
+    <a class="sidebar-link" data-target="mod-nbt" onclick="nav(this,'mod-nbt')"><span class="mod-icon">🧬</span> nbt</a>
+    <a class="sidebar-link" data-target="mod-list" onclick="nav(this,'mod-list')"><span class="mod-icon">📂</span> list</a>
+    <a class="sidebar-link" data-target="mod-flag" onclick="nav(this,'mod-flag')"><span class="mod-icon">🚩</span> flag</a>
+    <a class="sidebar-link" data-target="mod-uuid" onclick="nav(this,'mod-uuid')"><span class="mod-icon">🔑</span> uuid</a>
+    <a class="sidebar-link" data-target="mod-entity" onclick="nav(this,'mod-entity')"><span class="mod-icon">🦇</span> entity</a>
+    <a class="sidebar-link" data-target="mod-interaction" onclick="nav(this,'mod-interaction')"><span class="mod-icon">🖱</span> interaction</a>
+    <a class="sidebar-link" data-target="mod-wand" onclick="nav(this,'mod-wand')"><span class="mod-icon">🪄</span> wand</a>
+    <a class="sidebar-link" data-target="mod-sound" onclick="nav(this,'mod-sound')"><span class="mod-icon">🔊</span> sound</a>
+    <a class="sidebar-link" data-target="mod-particle" onclick="nav(this,'mod-particle')"><span class="mod-icon">✨</span> particle</a>
+    <a class="sidebar-link" data-target="mod-geo" onclick="nav(this,'mod-geo')"><span class="mod-icon">📐</span> geo</a>
+    <a class="sidebar-link" data-target="mod-world" onclick="nav(this,'mod-world')"><span class="mod-icon">🌍</span> world</a>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main id="main">
+
+  <!-- HERO -->
+  <section class="hero section-anchor" id="overview">
+    <div class="hero-eyebrow">ToolkitMC · Advanced Macro Engine</div>
+    <h1 class="hero-title">macroEngine<br/><em>API Reference</em></h1>
+    <p class="hero-desc">
+      A high-performance scripting and macro execution framework for Minecraft Java Edition datapacks.
+      Provides fiber scheduling, modular APIs, and multi-version overlay support out of the box.
+    </p>
+    <div class="hero-chips">
+      <span class="chip green">15 Modules</span>
+      <span class="chip">Minecraft 1.21.11</span>
+      <span class="chip">pack_format 94</span>
+      <span class="chip">Overlay-aware</span>
+      <span class="chip">Java Edition only</span>
+      <span class="chip">Namespace: macro</span>
+    </div>
+  </section>
+
+  <!-- STORAGE CONVENTION -->
+  <section class="section-anchor" id="storage">
+    <div class="module-header" style="border-top:none;margin-top:0;padding-top:0">
+      <div class="module-icon-box">🗄</div>
+      <div class="module-meta">
+        <div class="module-name">Storage Convention</div>
+        <div class="module-desc">All modules communicate via three canonical storage namespaces. Never write directly to <code style="color:var(--green);font-family:JetBrains Mono,monospace;font-size:11px">macro:engine</code> — it is internal.</div>
+      </div>
+    </div>
+    <div class="storage-grid">
+      <div class="storage-card">
+        <div class="storage-key">macro:input</div>
+        <div class="storage-val">Write call arguments here before invoking a module function. Cleared by the callee after reading.</div>
+      </div>
+      <div class="storage-card">
+        <div class="storage-key">macro:output</div>
+        <div class="storage-val">Return values are written here by the callee. Read immediately — next call will overwrite.</div>
+      </div>
+      <div class="storage-card">
+        <div class="storage-key">macro:engine</div>
+        <div class="storage-val">Internal runtime state (fiber stack, scheduler heap, counters). <strong>Read-only</strong> for user code.</div>
+      </div>
+      <div class="storage-card">
+        <div class="storage-key">input_push / input_pop</div>
+        <div class="storage-val">Use these helpers to safely nest module calls without clobbering <code style="font-family:JetBrains Mono,monospace;font-size:10px">macro:input</code>.</div>
+      </div>
+    </div>
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠</span>
+      <span class="callout-text"><strong>Nesting rule:</strong> Always call <code>macro:io/input_push</code> before a nested module invocation and <code>macro:io/input_pop</code> after, otherwise the outer call's input data will be corrupted.</span>
+    </div>
+  </section>
+
+  <!-- MACRO SYNTAX -->
+  <section class="section-anchor" id="macrosyntax">
+    <div class="module-header">
+      <div class="module-icon-box">⚙</div>
+      <div class="module-meta">
+        <div class="module-name">Macro Syntax Rules</div>
+        <div class="module-desc">Rules that apply to every <code style="color:var(--green);font-family:JetBrains Mono,monospace;font-size:11px">.mcfunction</code> file that uses AME macros.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="callout callout-tip">
+        <span class="callout-icon">✔</span>
+        <div class="callout-text">
+          <strong>Macro line rules</strong><br/>
+          • Every macro line <strong>must</strong> start with <code>$</code><br/>
+          • Every macro line <strong>must</strong> contain at least one <code>$(variable)</code><br/>
+          • Non-macro lines inside a macro function are executed literally — do not use <code>$(…)</code> in them<br/>
+          • Scoreboard fake-player names use <code>#name</code> prefix (not <code>$name</code>) in non-macro lines
+        </div>
+      </div>
+      <div class="callout callout-info">
+        <span class="callout-icon">ℹ</span>
+        <div class="callout-text">
+          <strong>pack.mcmeta</strong> — <code>supported_formats</code> must always be <code>{"min_inclusive":X,"max_inclusive":Y}</code>. Array syntax <code>[X,Y]</code> is invalid on 1.21.10+ servers.
+        </div>
+      </div>
+    </div>
+    <div class="code-block">
+      <div class="code-block-header"><span class="code-lang">.mcfunction · macro example</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+<pre><span class="cmt"># Set input, then call a module function</span>
+<span class="fn-hl">data modify</span> storage macro:input target <span class="kw">set value</span> <span class="str">"my_target"</span>
+<span class="fn-hl">function</span> macro:scheduler/run_after
+
+<span class="cmt"># A macro function that reads $(delay) from storage</span>
+<span class="var">$</span><span class="fn-hl">schedule function</span> macro:mypack/callback <span class="num">$(delay)</span>t append</pre>
+    </div>
+  </section>
+
+  <!-- ── MODULE: SCHEDULER ── -->
+  <section class="section-anchor" id="mod-scheduler">
+    <div class="module-header">
+      <div class="module-icon-box">⏱</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>scheduler</div>
+        <div class="module-desc">Fiber-based task scheduling. Defers function execution by a tick count without blocking the main tick. Supports repeating fibers and cancellation by ID.</div>
+      </div>
+    </div>
+    <div class="fn-list" id="fn-list-scheduler">
+
+      <!-- run_after -->
+      <div class="fn-card" id="fn-scheduler-run_after">
+        <div class="fn-card-head" onclick="toggle(this)">
+          <span class="fn-method fn">FN</span>
+          <span class="fn-path"><span class="ns-part">macro:scheduler/</span>run_after</span>
+          <span class="fn-summary">Schedule a function to run after N ticks</span>
+          <span class="fn-toggle">▾</span>
+        </div>
+        <div class="fn-card-body">
+          <div class="param-label">Input (macro:input)</div>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>delay</td><td>int</td><td>Ticks to wait before execution</td><td class="req">required</td></tr>
+              <tr><td>function</td><td>string</td><td>Namespaced function path to call</td><td class="req">required</td></tr>
+              <tr><td>id</td><td>string</td><td>Unique fiber ID (for cancellation)</td><td class="opt">optional</td></tr>
+            </tbody>
+          </table>
+          <div class="param-label">Output (macro:output)</div>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>fiber_id</td><td>string</td><td>Assigned fiber ID (auto-generated if not supplied)</td></tr>
+            </tbody>
+          </table>
+          <div class="param-label">Example</div>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">.mcfunction</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+<pre><span class="fn-hl">data modify</span> storage macro:input delay <span class="kw">set value</span> <span class="num">40</span>
+<span class="fn-hl">data modify</span> storage macro:input function <span class="kw">set value</span> <span class="str">"mypack:on_expire"</span>
+<span class="fn-hl">data modify</span> storage macro:input id <span class="kw">set value</span> <span class="str">"my_timer_fiber"</span>
+<span class="fn-hl">function</span> macro:scheduler/run_after</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- repeat -->
+      <div class="fn-card" id="fn-scheduler-repeat">
+        <div class="fn-card-head" onclick="toggle(this)">
+          <span class="fn-method fn">FN</span>
+          <span class="fn-path"><span class="ns-part">macro:scheduler/</span>repeat</span>
+          <span class="fn-summary">Run a function every N ticks indefinitely</span>
+          <span class="fn-toggle">▾</span>
+        </div>
+        <div class="fn-card-body">
+          <div class="param-label">Input (macro:input)</div>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>interval</td><td>int</td><td>Tick interval between executions</td><td class="req">required</td></tr>
+              <tr><td>function</td><td>string</td><td>Namespaced function path</td><td class="req">required</td></tr>
+              <tr><td>id</td><td>string</td><td>Fiber ID for later cancellation</td><td class="opt">optional</td></tr>
+            </tbody>
+          </table>
+          <div class="callout callout-warn"><span class="callout-icon">⚠</span><span class="callout-text">Always store the returned <code>fiber_id</code> if you plan to cancel later. Lost IDs cannot be recovered.</span></div>
+        </div>
+      </div>
+
+      <!-- cancel -->
+      <div class="fn-card" id="fn-scheduler-cancel">
+        <div class="fn-card-head" onclick="toggle(this)">
+          <span class="fn-method fn">FN</span>
+          <span class="fn-path"><span class="ns-part">macro:scheduler/</span>cancel</span>
+          <span class="fn-summary">Cancel a scheduled or repeating fiber by ID</span>
+          <span class="fn-toggle">▾</span>
+        </div>
+        <div class="fn-card-body">
+          <div class="param-label">Input (macro:input)</div>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>id</td><td>string</td><td>Fiber ID to cancel</td><td class="req">required</td></tr>
+            </tbody>
+          </table>
+          <div class="param-label">Output (macro:output)</div>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody><tr><td>cancelled</td><td>bool</td><td><code>1</code> if found and removed, <code>0</code> if not found</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: TIMER ── -->
+  <section class="section-anchor" id="mod-timer">
+    <div class="module-header">
+      <div class="module-icon-box">🕐</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>timer</div>
+        <div class="module-desc">Named countdown timers attached to scoreboard fake-players. Distinct from scheduler — timers are inspectable and persistent across function calls.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:timer/</span>start</span><span class="fn-summary">Start a named countdown timer</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>name</td><td>string</td><td>Timer name (used as scoreboard fake-player)</td><td class="req">required</td></tr>
+            <tr><td>ticks</td><td>int</td><td>Initial countdown value in ticks</td><td class="req">required</td></tr>
+          </tbody></table>
+          <div class="callout callout-tip"><span class="callout-icon">✔</span><span class="callout-text">The scoreboard objective <code>macro.timer</code> is created automatically on load. Timer fake-players follow the <code>#name</code> prefix convention.</span></div>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:timer/</span>get</span><span class="fn-summary">Read remaining ticks on a timer</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>name</td><td>string</td><td>Timer name</td><td class="req">required</td></tr>
+          </tbody></table>
+          <div class="param-label">Output</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+            <tr><td>value</td><td>int</td><td>Remaining ticks (<code>-1</code> if timer does not exist)</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:timer/</span>reset</span><span class="fn-summary">Reset timer to initial value</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>name</td><td>string</td><td>Timer name</td><td class="req">required</td></tr>
+            <tr><td>ticks</td><td>int</td><td>New initial value (optional — uses last value if omitted)</td><td class="opt">optional</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:timer/</span>stop</span><span class="fn-summary">Remove a timer entirely</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>name</td><td>string</td><td>Timer name</td><td class="req">required</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: QUEUE ── -->
+  <section class="section-anchor" id="mod-queue">
+    <div class="module-header">
+      <div class="module-icon-box">📋</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>queue</div>
+        <div class="module-desc">Named FIFO queues backed by NBT lists in <code style="font-family:JetBrains Mono,monospace;font-size:11px">macro:engine</code>. Useful for sequencing actions without tick-blocking.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:queue/</span>push</span><span class="fn-summary">Enqueue a value</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>name</td><td>string</td><td>Queue identifier</td><td class="req">required</td></tr>
+            <tr><td>value</td><td>any</td><td>NBT value to enqueue (string, int, compound…)</td><td class="req">required</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:queue/</span>pop</span><span class="fn-summary">Dequeue the front element</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>name</td><td>string</td><td>Queue identifier</td><td class="req">required</td></tr></tbody></table>
+          <div class="param-label">Output</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+            <tr><td>value</td><td>any</td><td>Front element, or <code>null</code> if queue is empty</td></tr>
+            <tr><td>empty</td><td>bool</td><td><code>1</code> if queue was already empty</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:queue/</span>size</span><span class="fn-summary">Get element count</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>size</td><td>int</td><td>Number of elements currently in the queue</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:queue/</span>clear</span><span class="fn-summary">Empty the queue</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>name</td><td>string</td><td>Queue identifier</td><td class="req">required</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: IO ── -->
+  <section class="section-anchor" id="mod-io">
+    <div class="module-header">
+      <div class="module-icon-box">💾</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>io</div>
+        <div class="module-desc">Input/output stack helpers. Provides <code>input_push</code> / <code>input_pop</code> for safe nested calls, plus convenience read/write wrappers.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:io/</span>input_push</span><span class="fn-summary">Save current macro:input to the stack</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="callout callout-tip"><span class="callout-icon">✔</span><span class="callout-text">Call before any nested module invocation. Pairs with <code>macro:io/input_pop</code>.</span></div>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">.mcfunction · nested call pattern</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+<pre><span class="fn-hl">function</span> macro:io/input_push
+<span class="fn-hl">data modify</span> storage macro:input name <span class="kw">set value</span> <span class="str">"inner_queue"</span>
+<span class="fn-hl">function</span> macro:queue/pop
+<span class="fn-hl">function</span> macro:io/input_pop</pre>
+          </div>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:io/</span>input_pop</span><span class="fn-summary">Restore macro:input from stack</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="callout callout-warn"><span class="callout-icon">⚠</span><span class="callout-text">Each <code>input_push</code> must have exactly one matching <code>input_pop</code>. Mismatched calls corrupt the stack.</span></div></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:io/</span>clear_input</span><span class="fn-summary">Wipe all fields in macro:input</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="callout callout-info"><span class="callout-icon">ℹ</span><span class="callout-text">Useful before building a fresh input compound to avoid stale fields from a previous call.</span></div></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: NBT ── -->
+  <section class="section-anchor" id="mod-nbt">
+    <div class="module-header">
+      <div class="module-icon-box">🧬</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>nbt</div>
+        <div class="module-desc">NBT utility operations: deep-copy, merge, type-cast, and path manipulation helpers that simplify common <code>data</code> command patterns.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:nbt/</span>copy</span><span class="fn-summary">Deep-copy a storage path to another</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>src</td><td>string</td><td>Source path e.g. <code>"macro:engine some.path"</code></td><td class="req">required</td></tr>
+            <tr><td>dst</td><td>string</td><td>Destination path</td><td class="req">required</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:nbt/</span>merge</span><span class="fn-summary">Merge a compound into a storage path</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>target</td><td>string</td><td>Destination storage path</td><td class="req">required</td></tr><tr><td>data</td><td>compound</td><td>NBT compound to merge in</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:nbt/</span>to_string</span><span class="fn-summary">Stringify an NBT value</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>result</td><td>string</td><td>SNBT representation of the input value</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: LIST ── -->
+  <section class="section-anchor" id="mod-list">
+    <div class="module-header">
+      <div class="module-icon-box">📂</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>list</div>
+        <div class="module-desc">Dynamic list (NBT array) operations: append, prepend, get by index, remove, and iteration via function tag dispatch.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:list/</span>append</span><span class="fn-summary">Add element to end of list</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>list</td><td>string</td><td>Storage path to the list</td><td class="req">required</td></tr><tr><td>value</td><td>any</td><td>Element to append</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:list/</span>get</span><span class="fn-summary">Retrieve element at index</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>list</td><td>string</td><td>Storage path to the list</td><td class="req">required</td></tr><tr><td>index</td><td>int</td><td>Zero-based index (<code>-1</code> = last)</td><td class="req">required</td></tr></tbody></table><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>value</td><td>any</td><td>Element at the given index</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:list/</span>remove</span><span class="fn-summary">Remove element by index</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>list</td><td>string</td><td>Storage path to the list</td><td class="req">required</td></tr><tr><td>index</td><td>int</td><td>Zero-based index to remove</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method tag">TAG</span><span class="fn-path"><span class="ns-part">macro:list/</span>iterate</span><span class="fn-summary">Dispatch function tag for each element</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="callout callout-info"><span class="callout-icon">ℹ</span><span class="callout-text">Add your handler to the <code>#macro:list/on_element</code> function tag. Each call receives the current element in <code>macro:output value</code> and the index in <code>macro:output index</code>.</span></div></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: FLAG ── -->
+  <section class="section-anchor" id="mod-flag">
+    <div class="module-header">
+      <div class="module-icon-box">🚩</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>flag</div>
+        <div class="module-desc">Named boolean flags stored as scoreboard fake-players. Simpler than full scoreboard objectives for on/off state tracking.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:flag/</span>set</span><span class="fn-summary">Set a flag to 1</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>name</td><td>string</td><td>Flag name (stored as <code>#flag.name</code> fake-player)</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:flag/</span>unset</span><span class="fn-summary">Set a flag to 0</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>name</td><td>string</td><td>Flag name</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:flag/</span>get</span><span class="fn-summary">Read flag value</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>value</td><td>int</td><td><code>1</code> (set) or <code>0</code> (unset / not found)</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:flag/</span>toggle</span><span class="fn-summary">Flip a flag between 0 and 1</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>new_value</td><td>int</td><td>Resulting value after toggle</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: UUID ── -->
+  <section class="section-anchor" id="mod-uuid">
+    <div class="module-header">
+      <div class="module-icon-box">🔑</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>uuid</div>
+        <div class="module-desc">UUID generation and conversion utilities. Generates v4-like UUIDs using entity summon/kill tricks. Converts between int-array and string representations.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:uuid/</span>generate</span><span class="fn-summary">Generate a new random UUID</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Output</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+            <tr><td>uuid_int</td><td>int[]</td><td>UUID as 4-element int array (native MC format)</td></tr>
+            <tr><td>uuid_str</td><td>string</td><td>UUID as hyphenated string e.g. <code>"f47ac10b-58cc-..."</code></td></tr>
+          </tbody></table>
+          <div class="callout callout-warn"><span class="callout-icon">⚠</span><span class="callout-text">Generation summons and immediately kills a marker entity. Avoid calling in rapid loops — prefer caching.</span></div>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:uuid/</span>int_to_str</span><span class="fn-summary">Convert int[] UUID to string</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>uuid</td><td>int[]</td><td>4-element int array UUID</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:uuid/</span>str_to_int</span><span class="fn-summary">Convert string UUID to int[]</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>uuid</td><td>string</td><td>Hyphenated UUID string</td><td class="req">required</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: ENTITY ── -->
+  <section class="section-anchor" id="mod-entity">
+    <div class="module-header">
+      <div class="module-icon-box">🦇</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>entity</div>
+        <div class="module-desc">Entity management utilities: tag-based selection, NBT snapshotting, and safe kill wrappers that avoid killing the command executor.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:entity/</span>tag_by_uuid</span><span class="fn-summary">Apply a tag to an entity by UUID</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>uuid</td><td>int[]</td><td>Target entity UUID</td><td class="req">required</td></tr><tr><td>tag</td><td>string</td><td>Tag to apply</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:entity/</span>snapshot_nbt</span><span class="fn-summary">Copy entity NBT to storage</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>selector</td><td>string</td><td>Single-entity selector e.g. <code>"@e[tag=my_tag,limit=1]"</code></td><td class="req">required</td></tr><tr><td>dst</td><td>string</td><td>Storage path to write NBT to</td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:entity/</span>safe_kill</span><span class="fn-summary">Kill entities by tag, skip executor</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>tag</td><td>string</td><td>Entity tag to kill</td><td class="req">required</td></tr></tbody></table><div class="callout callout-tip"><span class="callout-icon">✔</span><span class="callout-text">Never uses <code>@a</code> or bare <code>@e</code>. Will not kill the executing entity even if it holds the tag.</span></div></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: INTERACTION ── -->
+  <section class="section-anchor" id="mod-interaction">
+    <div class="module-header">
+      <div class="module-icon-box">🖱</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>interaction</div>
+        <div class="module-desc">Hitbox-based player interaction detection using the <code>minecraft:interaction</code> entity. Exposes left-click, right-click, and hover callbacks via function tags.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:interaction/</span>spawn</span><span class="fn-summary">Spawn an interaction entity at position</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>x</td><td>double</td><td>X coordinate</td><td class="req">required</td></tr><tr><td>y</td><td>double</td><td>Y coordinate</td><td class="req">required</td></tr><tr><td>z</td><td>double</td><td>Z coordinate</td><td class="req">required</td></tr><tr><td>width</td><td>double</td><td>Hitbox width</td><td class="opt">optional</td></tr><tr><td>height</td><td>double</td><td>Hitbox height</td><td class="opt">optional</td></tr><tr><td>tag</td><td>string</td><td>Entity tag for later identification</td><td class="opt">optional</td></tr></tbody></table><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>uuid</td><td>int[]</td><td>UUID of the spawned interaction entity</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method tag">TAG</span><span class="fn-path"><span class="ns-part">macro:interaction/</span>on_attack</span><span class="fn-summary">Called on left-click (attack)</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="callout callout-info"><span class="callout-icon">ℹ</span><span class="callout-text">Add your handler to <code>#macro:interaction/on_attack</code>. Context: executor = the interacted entity, <code>macro:output player</code> = attacker UUID.</span></div></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method tag">TAG</span><span class="fn-path"><span class="ns-part">macro:interaction/</span>on_interact</span><span class="fn-summary">Called on right-click (interact)</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="callout callout-info"><span class="callout-icon">ℹ</span><span class="callout-text">Add your handler to <code>#macro:interaction/on_interact</code>. Same context as <code>on_attack</code>.</span></div></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:interaction/</span>despawn</span><span class="fn-summary">Remove an interaction entity by UUID</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>uuid</td><td>int[]</td><td>UUID from spawn output</td><td class="req">required</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: WAND ── -->
+  <section class="section-anchor" id="mod-wand">
+    <div class="module-header">
+      <div class="module-icon-box">🪄</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>wand</div>
+        <div class="module-desc">Item-based wand system. Binds custom items to named actions dispatched via function tags. Supports multi-slot and per-player wand state.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:wand/</span>register</span><span class="fn-summary">Register an item as a wand</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>id</td><td>string</td><td>Wand ID (used to route callbacks)</td><td class="req">required</td></tr><tr><td>item</td><td>string</td><td>Item type e.g. <code>"minecraft:stick"</code></td><td class="req">required</td></tr><tr><td>custom_model_data</td><td>int</td><td>CMD value to distinguish the wand item</td><td class="opt">optional</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method tag">TAG</span><span class="fn-path"><span class="ns-part">macro:wand/</span>on_use</span><span class="fn-summary">Right-click callback for registered wands</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="callout callout-info"><span class="callout-icon">ℹ</span><span class="callout-text">Add handler to <code>#macro:wand/on_use</code>. <code>macro:output wand_id</code> tells you which wand was used.</span></div></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:wand/</span>give</span><span class="fn-summary">Give the registered wand to a player</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>id</td><td>string</td><td>Wand ID to give</td><td class="req">required</td></tr><tr><td>target</td><td>string</td><td>Player selector</td><td class="req">required</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: SOUND ── -->
+  <section class="section-anchor" id="mod-sound">
+    <div class="module-header">
+      <div class="module-icon-box">🔊</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>sound</div>
+        <div class="module-desc">Dynamic sound playback with storage-driven parameters. Wraps the <code>playsound</code> command to support macro-injected coordinates, volume, and pitch.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:sound/</span>play</span><span class="fn-summary">Play a sound at a position or entity</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>sound</td><td>string</td><td>Sound event e.g. <code>"minecraft:entity.player.levelup"</code></td><td class="req">required</td></tr>
+            <tr><td>source</td><td>string</td><td>Sound source: <code>master</code>, <code>music</code>, <code>record</code>, <code>weather</code>, <code>block</code>, <code>hostile</code>, <code>neutral</code>, <code>player</code>, <code>ambient</code>, <code>voice</code></td><td class="req">required</td></tr>
+            <tr><td>target</td><td>string</td><td>Player selector to hear the sound</td><td class="req">required</td></tr>
+            <tr><td>x</td><td>double</td><td>X position</td><td class="opt">optional</td></tr>
+            <tr><td>y</td><td>double</td><td>Y position</td><td class="opt">optional</td></tr>
+            <tr><td>z</td><td>double</td><td>Z position</td><td class="opt">optional</td></tr>
+            <tr><td>volume</td><td>double</td><td>Volume multiplier (default <code>1.0</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>pitch</td><td>double</td><td>Pitch multiplier (default <code>1.0</code>, range <code>0.5–2.0</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>min_volume</td><td>double</td><td>Minimum audible volume for distant players</td><td class="opt">optional</td></tr>
+          </tbody></table>
+          <div class="code-block"><div class="code-block-header"><span class="code-lang">.mcfunction · play level-up sound to nearest player</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
+<pre><span class="fn-hl">data modify</span> storage macro:input sound <span class="kw">set value</span> <span class="str">"minecraft:entity.player.levelup"</span>
+<span class="fn-hl">data modify</span> storage macro:input source <span class="kw">set value</span> <span class="str">"player"</span>
+<span class="fn-hl">data modify</span> storage macro:input target <span class="kw">set value</span> <span class="str">"@a[limit=1,sort=nearest]"</span>
+<span class="fn-hl">data modify</span> storage macro:input volume <span class="kw">set value</span> <span class="num">1.0</span>d
+<span class="fn-hl">data modify</span> storage macro:input pitch <span class="kw">set value</span> <span class="num">1.2</span>d
+<span class="fn-hl">function</span> macro:sound/play</pre>
+          </div>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:sound/</span>stop</span><span class="fn-summary">Stop a playing sound for players</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>target</td><td>string</td><td>Player selector</td><td class="req">required</td></tr><tr><td>source</td><td>string</td><td>Source channel to stop (omit to stop all)</td><td class="opt">optional</td></tr><tr><td>sound</td><td>string</td><td>Specific sound to stop (omit to stop all in source)</td><td class="opt">optional</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: PARTICLE ── -->
+  <section class="section-anchor" id="mod-particle">
+    <div class="module-header">
+      <div class="module-icon-box">✨</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>particle</div>
+        <div class="module-desc">Macro-driven particle spawner. Supports single-burst and continuous emission with dynamic coordinate and count injection from storage.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:particle/</span>spawn</span><span class="fn-summary">Spawn particles at a location</span><span class="fn-toggle">▾</span></div>
+        <div class="fn-card-body">
+          <div class="param-label">Input</div>
+          <table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody>
+            <tr><td>particle</td><td>string</td><td>Particle type e.g. <code>"minecraft:flame"</code></td><td class="req">required</td></tr>
+            <tr><td>x</td><td>double</td><td>X</td><td class="req">required</td></tr>
+            <tr><td>y</td><td>double</td><td>Y</td><td class="req">required</td></tr>
+            <tr><td>z</td><td>double</td><td>Z</td><td class="req">required</td></tr>
+            <tr><td>dx</td><td>double</td><td>X spread (default <code>0</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>dy</td><td>double</td><td>Y spread (default <code>0</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>dz</td><td>double</td><td>Z spread (default <code>0</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>speed</td><td>double</td><td>Particle speed (default <code>0</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>count</td><td>int</td><td>Number of particles (default <code>1</code>)</td><td class="opt">optional</td></tr>
+            <tr><td>force</td><td>bool</td><td><code>1</code> = force (visible beyond 32 blocks)</td><td class="opt">optional</td></tr>
+          </tbody></table>
+          <div class="callout callout-warn"><span class="callout-icon">⚠</span><span class="callout-text">High <code>count</code> values in tight loops can cause client-side lag. Cap per-tick emission and prefer spread parameters over large counts.</span></div>
+        </div>
+      </div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:particle/</span>circle</span><span class="fn-summary">Emit particles in a circle pattern</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>particle</td><td>string</td><td>Particle type</td><td class="req">required</td></tr><tr><td>x</td><td>double</td><td>Center X</td><td class="req">required</td></tr><tr><td>y</td><td>double</td><td>Center Y</td><td class="req">required</td></tr><tr><td>z</td><td>double</td><td>Center Z</td><td class="req">required</td></tr><tr><td>radius</td><td>double</td><td>Circle radius in blocks</td><td class="req">required</td></tr><tr><td>steps</td><td>int</td><td>Number of points around the circle (default <code>16</code>)</td><td class="opt">optional</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: GEO ── -->
+  <section class="section-anchor" id="mod-geo">
+    <div class="module-header">
+      <div class="module-icon-box">📐</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>geo</div>
+        <div class="module-desc">Geometric and positional math: distance calculation, direction vectors, bounding-box checks, and coordinate interpolation — all computed via scoreboard fixed-point arithmetic.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:geo/</span>distance</span><span class="fn-summary">3D distance between two points</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>x1,y1,z1</td><td>double</td><td>Point A</td><td class="req">required</td></tr><tr><td>x2,y2,z2</td><td>double</td><td>Point B</td><td class="req">required</td></tr></tbody></table><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>distance</td><td>double</td><td>Euclidean distance (fixed-point, ×1000 internally)</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:geo/</span>in_box</span><span class="fn-summary">Check if point is inside AABB</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>x,y,z</td><td>double</td><td>Point to test</td><td class="req">required</td></tr><tr><td>min_x,min_y,min_z</td><td>double</td><td>Box minimum corner</td><td class="req">required</td></tr><tr><td>max_x,max_y,max_z</td><td>double</td><td>Box maximum corner</td><td class="req">required</td></tr></tbody></table><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>result</td><td>int</td><td><code>1</code> if inside, <code>0</code> if outside</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:geo/</span>lerp</span><span class="fn-summary">Linear interpolation between two points</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>x1,y1,z1</td><td>double</td><td>Start point</td><td class="req">required</td></tr><tr><td>x2,y2,z2</td><td>double</td><td>End point</td><td class="req">required</td></tr><tr><td>t</td><td>double</td><td>Interpolation factor <code>0.0–1.0</code></td><td class="req">required</td></tr></tbody></table><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>x,y,z</td><td>double</td><td>Interpolated position</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ── MODULE: WORLD ── -->
+  <section class="section-anchor" id="mod-world">
+    <div class="module-header">
+      <div class="module-icon-box">🌍</div>
+      <div class="module-meta">
+        <div class="module-name"><span class="ns">macro:</span>world</div>
+        <div class="module-desc">World and dimension utilities: gamerule wrappers, time/weather queries, dimension detection, and forceload helpers with automatic cleanup.</div>
+      </div>
+    </div>
+    <div class="fn-list">
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:world/</span>get_dimension</span><span class="fn-summary">Return the current dimension ID</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>dimension</td><td>string</td><td>e.g. <code>"minecraft:overworld"</code>, <code>"minecraft:the_nether"</code>, <code>"minecraft:the_end"</code></td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:world/</span>get_time</span><span class="fn-summary">Get current world time in ticks</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Output</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>time</td><td>int</td><td>Daytime ticks <code>0–23999</code></td></tr><tr><td>day</td><td>int</td><td>Absolute day count</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:world/</span>forceload_add</span><span class="fn-summary">Forceload a chunk with auto-cleanup tag</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>x</td><td>int</td><td>Block X (chunk derived automatically)</td><td class="req">required</td></tr><tr><td>z</td><td>int</td><td>Block Z</td><td class="req">required</td></tr><tr><td>tag</td><td>string</td><td>Cleanup group tag (pass to <code>forceload_remove</code>)</td><td class="opt">optional</td></tr></tbody></table><div class="callout callout-warn"><span class="callout-icon">⚠</span><span class="callout-text">Always call <code>macro:world/forceload_remove</code> with the same tag when done. Leaked forceloads persist across restarts and increase server RAM usage.</span></div></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:world/</span>forceload_remove</span><span class="fn-summary">Remove all forceloads by cleanup tag</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>tag</td><td>string</td><td>Cleanup tag used in <code>forceload_add</code></td><td class="req">required</td></tr></tbody></table></div></div>
+      <div class="fn-card"><div class="fn-card-head" onclick="toggle(this)"><span class="fn-method fn">FN</span><span class="fn-path"><span class="ns-part">macro:world/</span>set_gamerule</span><span class="fn-summary">Set a gamerule via macro injection</span><span class="fn-toggle">▾</span></div><div class="fn-card-body"><div class="param-label">Input</div><table class="param-table"><thead><tr><th>Field</th><th>Type</th><th>Description</th><th></th></tr></thead><tbody><tr><td>rule</td><td>string</td><td>Gamerule name e.g. <code>"doMobSpawning"</code></td><td class="req">required</td></tr><tr><td>value</td><td>string</td><td>Value to set</td><td class="req">required</td></tr></tbody></table></div></div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<footer class="page-footer">
+  macroEngine (AME) · ToolkitMC · Minecraft Java Edition · pack_format 94 · 1.21.11
+</footer>
+
+<script>
+  // ── Toggle fn card ──
+  function toggle(head) {
+    const card = head.closest('.fn-card');
+    card.classList.toggle('open');
+  }
+
+  // ── Sidebar nav ──
+  function nav(el, id) {
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    el.classList.add('active');
+    const target = document.getElementById(id);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Scroll spy ──
+  const sections = document.querySelectorAll('.section-anchor');
+  const links = document.querySelectorAll('.sidebar-link');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        links.forEach(l => {
+          l.classList.toggle('active', l.dataset.target === id);
+        });
+      }
+    });
+  }, { rootMargin: '-56px 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+
+  // ── Copy code ──
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+    });
+  }
+
+  // ── Search ──
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', function() {
+    const q = this.value.trim().toLowerCase();
+    if (!q) {
+      document.querySelectorAll('.fn-card').forEach(c => c.classList.remove('hidden'));
+      document.querySelectorAll('.section-anchor').forEach(s => s.classList.remove('hidden'));
+      return;
+    }
+    document.querySelectorAll('.section-anchor').forEach(section => {
+      const cards = section.querySelectorAll('.fn-card');
+      let sectionVisible = section.textContent.toLowerCase().includes(q);
+      if (cards.length) {
+        let anyVisible = false;
+        cards.forEach(card => {
+          const match = card.textContent.toLowerCase().includes(q);
+          card.classList.toggle('hidden', !match);
+          if (match) anyVisible = true;
+        });
+        section.classList.toggle('hidden', !anyVisible && !section.querySelector('.module-header')?.textContent.toLowerCase().includes(q));
+      } else {
+        section.classList.toggle('hidden', !sectionVisible);
+      }
+    });
+  });
+</script>
+</body>
+</html>
